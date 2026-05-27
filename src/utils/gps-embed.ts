@@ -222,12 +222,6 @@ async function embedGpsPng(file: File, coords: GpsCoords): Promise<Blob> {
 
 // ─── WebP + EXIF RIFF ──────────────────────────────────────────────────────
 
-function u32le(n: number): Uint8Array {
-  const b = new Uint8Array(4)
-  new DataView(b.buffer).setUint32(0, n, true)
-  return b
-}
-
 function u24le(n: number): Uint8Array {
   const b = new Uint8Array(3)
   b[0] = n & 0xff
@@ -326,7 +320,11 @@ async function embedGpsWebp(file: File, coords: GpsCoords): Promise<Blob> {
   riffHeader.set(enc.encode('RIFF'))
   new DataView(riffHeader.buffer).setUint32(4, riffPayload.length, true)
 
-  return new Blob([riffHeader, riffPayload], { type: 'image/webp' })
+  // Copy into a plain ArrayBuffer so TypeScript accepts it as BlobPart
+  const combined = concat(riffHeader, riffPayload)
+  const ab = new ArrayBuffer(combined.byteLength)
+  new Uint8Array(ab).set(combined)
+  return new Blob([ab], { type: 'image/webp' })
 }
 
 /** Remove chunks with the given 4CC from a raw WebP chunk stream */
@@ -414,7 +412,14 @@ export async function embedGps(
 
   if (format === 'png') {
     const canvas = await renderToCanvas(file)
-    if (opts.overlay) applyGpsOverlay(canvas, { coords, placeName: opts.placeName ?? null })
+    if (opts.overlay) await applyGpsOverlay(canvas, {
+      coords,
+      stampTitle: opts.stampTitle ?? '',
+      stampLabel: opts.stampLabel ?? '',
+      stampAddress: opts.stampAddress ?? '',
+      stampDateTime: opts.stampDateTime,
+      stampMapZoom: opts.stampMapZoom,
+    })
     const pngBlob = await canvasToBlob(canvas, 'image/png')
     const tmp = new File([pngBlob], file.name, { type: 'image/png' })
     return embedGpsPng(tmp, coords)

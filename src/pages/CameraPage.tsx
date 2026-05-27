@@ -1,7 +1,6 @@
 import { createSignal, onCleanup, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import {
-  TbOutlineCamera,
   TbOutlineCameraRotate,
   TbOutlineArrowRight,
   TbOutlineRefresh,
